@@ -31,7 +31,7 @@
 #ifndef ASM
 #include <types_ext.h>
 #include <compiler.h>
-#include <sm/teesmc.h>
+#include <optee_msg.h>
 #include <kernel/mutex.h>
 #endif
 
@@ -458,38 +458,71 @@ void thread_add_mutex(struct mutex *m);
  */
 void thread_rem_mutex(struct mutex *m);
 
-/**
- * Allocates data for struct teesmc32_arg.
- *
- * @size: size in bytes of struct teesmc32_arg
- *
- * @returns 0 on failure or a physical pointer to a struct teesmc32_arg buffer
- *          on success.
+/*
+ * Disables and empties the peralloc RPC cache one reference at a time. If
+ * all threads are idle this function returns true and a cookie of one shm
+ * object which was removed from the cache. When the cache is empty
+ * *is_empty is set to true and the cache is disabled else false. If one
+ * thread isn't idle this function returns false.
  */
-paddr_t thread_rpc_alloc_arg(size_t size);
+bool thread_disable_prealloc_rpc_cache(bool *is_empty, uint64_t *cookie);
+
+/*
+ * Enabled the prealloc RPC cache. If all threads are idle the cache is
+ * enabled and this function returns true. If one thread isn't idle this
+ * function return false.
+ */
+bool thread_enable_prealloc_rpc_cache(void);
+
+enum rpc_buf_type {
+	RPC_BUF_TYPE_APPL,
+	RPC_BUF_TYPE_KERNEL,
+};
 
 /**
- * Allocates data for a payload buffer.
+ * Allocates shared memory buffer via RPC
  *
- * @size: size in bytes of payload buffer
- *
- * @returns 0 on failure or a physical pointer to a payload buffer on success.
+ * @size:	size in bytes of shared memory buffer
+ * @align:	required alignment of buffer
+ * @bt:		buffer type
+ * @payload:	returned physcial pointer to buffer, 0 if allocation
+ *		failed.
+ * @cookie:	returned cookie used when freeing the buffer
  */
-paddr_t thread_rpc_alloc_payload(size_t size);
+void thread_rpc_alloc(size_t size, size_t align, enum rpc_buf_type bt,
+			paddr_t *payload, uint64_t *cookie);
 
 /**
- * Free physical memory previously allocated with thread_rpc_alloc_arg()
+ * Free physical memory previously allocated with one of the
+ * thread_rpc_alloc*() functions
  *
- * @arg: physical pointer to struct teesmc32_arg buffer
+ * @cookie: cookie received when allocating the buffer
  */
-void thread_rpc_free_arg(paddr_t arg);
+void thread_rpc_free(uint64_t cookie);
 
 /**
- * Free physical memory previously allocated with thread_rpc_alloc_payload()
+ * Allocates data for struct teesmc_arg.
  *
- * @arg: physical pointer to struct teesmc32_arg buffer
+ * @size:	size in bytes of struct teesmc_arg
+ * @arg:	returned physcial pointer to a struct teesmc_arg buffer, 0 if
+ *		allocation failed.
+ * @cookie:	returned cookie used when freeing the buffer
  */
-void thread_rpc_free_payload(paddr_t payload);
+void thread_rpc_alloc_arg(size_t size, paddr_t *arg, uint64_t *cookie);
+
+/**
+ * Allocates data for payload buffers.
+ *
+ * @size:	size in bytes of payload buffer
+ * @payload:	returned physcial pointer to payload buffer, 0 if allocation
+ *		failed.
+ * @cookie:	returned cookie used when freeing the buffer
+ */
+static inline void thread_rpc_alloc_payload(size_t size, paddr_t *payload,
+			uint64_t *cookie)
+{
+	thread_rpc_alloc(size, 8, RPC_BUF_TYPE_APPL, payload, cookie);
+}
 
 /**
  * Does an RPC using a preallocated argument buffer
@@ -499,24 +532,7 @@ void thread_rpc_free_payload(paddr_t payload);
  * @returns RPC return value
  */
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
-		struct teesmc32_param *params);
-
-/**
- * Extension: Allocates data for payload buffers.
- *
- * @size: size in bytes of payload buffer
- * @payload: returned physcial pointer to payload buffer
- * @cookie: returned cookie used when freeing the buffer
- */
-void thread_optee_rpc_alloc_payload(size_t size, paddr_t *payload,
-				 paddr_t *cookie);
-
-/**
- * Extension: Free physical memory previously allocated with thread_rpc_alloc()
- *
- * @cookie: cookie received when allocating the payload buffer
- */
-void thread_optee_rpc_free_payload(paddr_t cookie);
+		struct optee_msg_param *params);
 
 #endif /*ASM*/
 

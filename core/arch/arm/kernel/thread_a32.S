@@ -28,7 +28,7 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <sm/teesmc.h>
+#include <sm/optee_smc.h>
 #include <sm/teesmc_opteed_macros.h>
 #include <sm/teesmc_opteed.h>
 #include <kernel/thread_defs.h>
@@ -277,7 +277,17 @@ END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
-	push	{lr}
+/*
+ * r0-r2 are used to pass parameters to normal world
+ * r0-r5 are used to pass return vaule back from normal world
+ *
+ * note that r3 is used to pass "resume information", that is, which
+ * thread it is that should resume.
+ *
+ * Since the this function is following AAPCS we need to preserve r4-r5
+ * which are otherwise modified when returning back from normal world.
+ */
+	push	{r4-r5, lr}
 	push	{r0}
 
 	bl	thread_save_state
@@ -311,8 +321,8 @@ FUNC thread_rpc , :
 	 * function was originally entered.
 	 */
 	pop	{r12}			/* Get pointer to rv[] */
-	stm	r12, {r0-r2}		/* Store r0-r2 into rv[] */
-	pop	{pc}
+	stm	r12, {r0-r5}		/* Store r0-r5 into rv[] */
+	pop	{r4-r5, pc}
 END_FUNC thread_rpc
 
 LOCAL_FUNC thread_fiq_handler , :
@@ -357,7 +367,7 @@ LOCAL_FUNC thread_irq_handler , :
 	mov	sp, r0
 
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	ldr	r1, =TEESMC_RETURN_RPC_IRQ
+	ldr	r1, =OPTEE_SMC_RETURN_RPC_IRQ
 	mov	r2, #0
 	mov	r3, #0
 	/* r4 is already filled in above */
