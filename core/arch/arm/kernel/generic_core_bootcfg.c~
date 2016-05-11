@@ -221,12 +221,12 @@ struct map_area *bootcfg_get_memory(void)
 				return NULL;
 			}
 			break;
-		/*case MEM_AREA_NSEC_SHM:
+		case MEM_AREA_NSEC_SHM:
 			if (!pbuf_is_inside(nsec_shared, map->pa, map->size)) {
 				EMSG("NSEC_SHM does not fit in nsec_shared");
 				return NULL;
 			}
-			break;*/
+			break;
 		default:
 			/* Other mapped areas are not checked. */
 			break;

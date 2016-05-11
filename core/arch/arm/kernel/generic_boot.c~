@@ -375,7 +375,7 @@ void print_core_pos_c(void)
 
 
 
-	while(j<160000000)
+	while(j<1600000000)
 	{
 		//DMSG("1: %x\n", *(int*)0x80a86300);
 		//DMSG("2: %x\n", *(int*)0x80a86304);

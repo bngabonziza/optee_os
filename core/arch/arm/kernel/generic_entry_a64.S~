@@ -203,7 +203,7 @@ END_FUNC unhandled_cpu
 
 
 LOCAL_FUNC normal_page_entry , :
-	ldr     x1, =0x100000                    
+	mov     x1, #0x100000                    
 	LSR     x1, x1, #20       /* Clear bottom 20 bits, to find which 1MB block it is in */
 	LSL     x2, x1, #2        /* Make a copy, and multiply by four. This gives offset into the page tables*/
 	LSL     x1, x1, #20       /* Put back in address format*/
