@@ -385,7 +385,7 @@ void print_core_pos_c(void)
 	}		
 	while(i < 1500)
 	{
-		DMSG("%d: %p: %02x\n", i, &p[i], p[i]);
+		DMSG("%d: %p: %c\n", i, &p[i], p[i]);
 		i++;
 	}
 	//}
