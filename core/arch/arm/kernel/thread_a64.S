@@ -821,5 +821,34 @@ END_FUNC elx_fiq
 
 
 LOCAL_FUNC print_core_pos , :
+
+	/*mov	x1, #0
+	ldr	x0, =TEESMC_OPTEED_RETURN_ON_8_DONE
+	smc	#0
+	b	.	SMC should not return */
 	b	print_core_pos_c
 END_FUNC print_core_pos
+
+
+.global physical_address
+
+FUNC physical_address, :
+
+	ldr X10, =0x80b4c000 
+	
+	/*MSR TTBR0_EL1, X10*/
+		
+	ldr X11, =0xffffffc87b488330
+			
+	AT S1E1R, X11 
+		
+	MRS X8, PAR_EL1 
+		
+	mov X0, X8
+	
+	ret
+			
+	
+END_FUNC physical_address
+
+

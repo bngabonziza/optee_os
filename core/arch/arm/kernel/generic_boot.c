@@ -45,6 +45,8 @@
 #include <util.h>
 
 #include <platform_config.h>
+#include <kernel/thread.h>
+
 
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 #include <sm/sm.h>
@@ -359,44 +361,156 @@ static void init_secondary_helper(uint32_t nsec_entry)
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
+#define OFFSET_TASKS 816
+#define OFFSET_COMM 1496
+#define KSYMBOL_INIT_TASK_ADDR 0x80a86300
 
+#define HL1 38 					   
+#define LL1 30 
+#define HL2 29 
+#define LL2 21 
+#define HL3 20 
+#define LL3 12
+
+
+
+struct linux_list_head
+{
+	struct linux_list_head *next, *prev;
+};
+
+/*
+struct linux_task_struct
+{
+	unsigned char padding1[OFFSET_TASKS];
+	struct linux_list_head tasks;
+	unsigned char padding2[OFFSET_COMM - OFFSET_TASKS - 16];
+	char comm[16];
+} __attribute__((__packed__));
+*/
+
+void mem_dump(unsigned char * p, unsigned char * n)
+{
+	unsigned int i = 0;
+	unsigned char *pa = p;	
+
+	
+	DMSG("%s\n",n);
+	
+	while (i < 8)
+	{
+		DMSG("%d: %p: %02x\n", i, &pa[i], pa[i]);
+		i++;
+	}
+}
+
+
+//struct linux_list_head *pp = (struct linux_list_head *)(0x80a86300+816);
+	//DMSG("%p: \n", (void*)(pp->next);
+	
+	//struct linux_list_head *pinit_task = (struct linux_list_head *)KSYMBOL_INIT_TASK_ADDR;
+ 
+	//DMSG("Right before SMC from Core %zu\n", get_core_pos());
+	//DMSG("TTTTTTTT %d:", (int)offsetof(struct linux_task_struct, comm));
+
+	//while(i++ < 10000)
+	//{}
+	
+	
+	
+void sec_virt_to_phys(uint64_t va){
+	
+	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((va << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	
+	uint64_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ 8*((va << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	
+	//uint64_t pa = *(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3))));//pa_l3_table;//+((va << (63-LL3+1)) >> (63-LL3+1));
+	uint32_t py= (((*(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
+
+	
+		DMSG("physical address:  %x \n", py);
+
+	
+	
+	} 
 
 void print_core_pos_c(void)
 {
 	unsigned int i = 0;
 	unsigned int j = 0;
-	const unsigned char *p = (unsigned char *)(0x80a86300+1300);
- 
-	DMSG("Right before SMC from Core %zu\n", get_core_pos());
 
-	//while(1)
-	//{
-	//	i = 0;	
+	//unsigned char *l2_pointer = (unsigned char *)(0x80b4c000+ 8*((0xffffffc000a86300 << (63-HL1)) >> (LL1+(63-HL1))));
+	unsigned char *p = (unsigned char *)(0x8fb400000);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
+
+	unsigned char *n = (unsigned char *)(0xffffffc87b488330);
+	
+	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((0xffffffc87b488330 << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	uint32_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	uint64_t desc_l3_table = *(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL2)) >> (LL2+(63-HL2))));
+	
+	//uint32_t pa = (((*(uint64_t*)(pa_l3_table+ 8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
+
+	//sec_virt_to_phys((uint64_t) (0xffffffc87b488330));
+
+	
+	
+	
+	//unsigned char *l3_base = (unsigned char *)(0x0);
 
 
+	memcpy(&n, &pa_l3_table, 4);
+	
+	//unsigned char *l3_pointer = (unsigned char *)(+ 8*((0xffffffc000a86300 << (63-HL2)) >> (LL2+(63-HL2))));
+	
+	//mem_dump(n,(unsigned char *)("tasks offset"));
 
-	while(j<160000000)
+	/*mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
+	
+	mem_dump((unsigned char *)(0x80b4c000+7747),(unsigned char *)("swapper_pg_dir"));
+	
+	mem_dump((unsigned char *)(0x80b4c000+297),(unsigned char *)("swapper_pg_dir+289"));
+
+	
+	mem_dump((unsigned char *)(0x80c88330),(unsigned char *)("physical_add"));
+
+	mem_dump((unsigned char *)(0x9100c800+6984),(unsigned char *)("physical_add2"));
+	
+	mem_dump((unsigned char *)(0x9fdf8330+816),(unsigned char *)("next_task"));*/
+
+//	mem_dump(n,(unsigned char *)("next_task"));
+
+	//DMSG("physical address 0x%x",physical_address());
+	
+	DMSG("ltable %lx %x\n", desc_l3_table, pa_l3_table);
+	
+	while(j < 100000)
 	{
-		//DMSG("1: %x\n", *(int*)0x80a86300);
-		//DMSG("2: %x\n", *(int*)0x80a86304);
-		//DMSG("3: %x\n", *(int*)0x80a86308);
-		//DMSG("4: %x\n", *(int*)0x80a8630c);
-	j++;
-	}		
-	while(i < 1500)
+		j++;
+	}
+
+	
+	while(i < 16)
 	{
-		DMSG("%d: %p: %c\n", i, &p[i], p[i]);
+		DMSG("%d: %p: %02x\n", i, &p[i] ,p[i]);
 		i++;
 	}
-	//}
+
 
 	while(1)
 	{
-		//DMSG("1: %x\n", *(int*)0x80a86300);
-		//DMSG("2: %x\n", *(int*)0x80a86304);
-		//DMSG("3: %x\n", *(int*)0x80a86308);
-		//DMSG("4: %x\n", *(int*)0x80a8630c);
+
 	}
+	
+
+
+	//unsigned char  * swapper_pg_dir=(unsigned char *)0x80b4c000;
+		
+	//unsigned char  * init_task=(unsigned char *)0x80a86300;
+	
+	//unsigned char  * init_task_tasks=(unsigned char *)(0x80a86300+816);
+	
+	//unsigned char  * init_task_common=(unsigned char *)(0x80a86300+1496);
+
 
 
 }

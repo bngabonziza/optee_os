@@ -206,6 +206,8 @@
 #define PAR_PA_SHIFT		12
 #define PAR_PA_MASK		((1ULL << 36) - 1)
 
+
+
 #ifndef ASM
 static inline void isb(void)
 {

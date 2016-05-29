@@ -37,6 +37,7 @@
 #include <kernel/mutex.h>
 #include <kernel/thread.h>
 
+
 enum thread_state {
 	THREAD_STATE_FREE,
 	THREAD_STATE_SUSPENDED,
@@ -195,6 +196,7 @@ uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
 
 /* Returns the temp stack for current CPU */
 void *thread_get_tmp_sp(void);
+
 
 /*
  * Marks the current thread as suspended. And updated the flags

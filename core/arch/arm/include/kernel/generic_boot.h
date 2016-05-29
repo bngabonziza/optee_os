@@ -40,7 +40,13 @@ void generic_boot_init_secondary(uint32_t nsec_entry);
 
 void main_init_gic(void);
 
+
 void print_core_pos_c(void) __attribute__((noreturn));
+
+void mem_dump(unsigned char * p, unsigned char * n);
+void sec_virt_to_phys(uint64_t VA); 
+
+uint32_t physical_address(void);
 
 void init_sec_mon(uint32_t nsec_entry);
 
