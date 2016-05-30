@@ -44,7 +44,7 @@ void main_init_gic(void);
 void print_core_pos_c(void) __attribute__((noreturn));
 
 void mem_dump(unsigned char * p, unsigned char * n);
-void sec_virt_to_phys(uint64_t VA); 
+uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base); 
 
 uint32_t physical_address(void);
 

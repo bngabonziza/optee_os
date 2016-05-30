@@ -361,19 +361,6 @@ static void init_secondary_helper(uint32_t nsec_entry)
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
-#define OFFSET_TASKS 816
-#define OFFSET_COMM 1496
-#define KSYMBOL_INIT_TASK_ADDR 0x80a86300
-
-#define HL1 38 					   
-#define LL1 30 
-#define HL2 29 
-#define LL2 21 
-#define HL3 20 
-#define LL3 12
-
-
-
 struct linux_list_head
 {
 	struct linux_list_head *next, *prev;
@@ -416,37 +403,74 @@ void mem_dump(unsigned char * p, unsigned char * n)
 	//while(i++ < 10000)
 	//{}
 	
+#define OFFSET_TASKS 816
+#define OFFSET_COMM 1496
+#define KSYMBOL_INIT_TASK_ADDR 0x80a86300
+#define SWAPPER_PGD_ADDR 0x80b4c000
+#define PE_DESCRIPTOR_SIZE 8
+
+#define MSG_OFFSET 63 // Most significant bit
+#define HL1 38 					   
+#define LL1 30 
+#define HL2 29 
+#define LL2 21 
+#define HL3 20 
+#define LL3 12
+#define LINUX_PAGE_SIZE_SHIFT 12
+#define TRANS_TB_BASE_ADDR_MSG_BIT 47 // D4.3 in ARM Manual
+#define L2_BLOCK_H 47
+#define L2_BLOCK_L 21
 	
+uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
+{
+
+	uint64_t index_l1_table, pe_descriptor_l1_table, pa_l2_table;
+	uint64_t index_l2_table, pe_descriptor_l2_table;
+	uint64_t ret;
+	//uint64_t index_l3_table, pe_descriptor_l3_table;
 	
-void sec_virt_to_phys(uint64_t va){
+	index_l1_table = (va << (MSG_OFFSET - HL1)) >> (LL1 + (MSG_OFFSET - HL1));
+	pe_descriptor_l1_table = *(uint64_t*)(ll_base + PE_DESCRIPTOR_SIZE * index_l1_table);
+	pa_l2_table = ((pe_descriptor_l1_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+
+	index_l2_table = (va << (MSG_OFFSET - HL2)) >> (LL2 + (MSG_OFFSET - HL2));
+	pe_descriptor_l2_table = *(uint64_t*)(pa_l2_table + PE_DESCRIPTOR_SIZE * index_l2_table);
 	
-	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((va << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	// when it is a block
+	ret = ((pe_descriptor_l2_table << (MSG_OFFSET - L2_BLOCK_H)) >> (MSG_OFFSET - L2_BLOCK_H + L2_BLOCK_L)) << L2_BLOCK_L;
+	ret += ((va << (MSG_OFFSET - L2_BLOCK_L)) >> (MSG_OFFSET - L2_BLOCK_L));
 	
-	uint64_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ 8*((va << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	// for 4KB
+	//pa_l3_table = ((pe_descriptor_l2_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+
+	//index_l3_table = (va << (MSG_OFFSET - HL3)) >> (LL3 + (MSG_OFFSET - HL3));
+	//pe_descriptor_l3_table = *(uint64_t*)(pa_l3_table + PE_DESCRIPTOR_SIZE * index_l3_table);
+
+//	uint64_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ PE_DESCRIPTOR_SIZE *((va << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
 	
 	//uint64_t pa = *(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3))));//pa_l3_table;//+((va << (63-LL3+1)) >> (63-LL3+1));
-	uint32_t py= (((*(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
+	//uint32_t py= (((*(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
 
-	
-		DMSG("physical address:  %x \n", py);
-
-	
-	
-	} 
+	DMSG("physical address:  %lx \n", ret);
+	return ret;
+} 
 
 void print_core_pos_c(void)
 {
-	unsigned int i = 0;
+	/*unsigned int i = 0;
 	unsigned int j = 0;
 
 	//unsigned char *l2_pointer = (unsigned char *)(0x80b4c000+ 8*((0xffffffc000a86300 << (63-HL1)) >> (LL1+(63-HL1))));
 	unsigned char *p = (unsigned char *)(0x8fb400000);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
 
 	unsigned char *n = (unsigned char *)(0xffffffc87b488330);
+	*/
+	va2pa_in_sec(0xffffffc87b488330, SWAPPER_PGD_ADDR);
 	
+	/*
 	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((0xffffffc87b488330 << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
 	uint32_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
-	uint64_t desc_l3_table = *(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL2)) >> (LL2+(63-HL2))));
+	uint64_t desc_l3_table = *(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
 	
 	//uint32_t pa = (((*(uint64_t*)(pa_l3_table+ 8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
 
@@ -464,7 +488,7 @@ void print_core_pos_c(void)
 	
 	//mem_dump(n,(unsigned char *)("tasks offset"));
 
-	/*mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
+	*//*mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
 	
 	mem_dump((unsigned char *)(0x80b4c000+7747),(unsigned char *)("swapper_pg_dir"));
 	
@@ -480,7 +504,7 @@ void print_core_pos_c(void)
 //	mem_dump(n,(unsigned char *)("next_task"));
 
 	//DMSG("physical address 0x%x",physical_address());
-	
+	/*
 	DMSG("ltable %lx %x\n", desc_l3_table, pa_l3_table);
 	
 	while(j < 100000)
@@ -495,12 +519,13 @@ void print_core_pos_c(void)
 		i++;
 	}
 
-
+	*/
+	
 	while(1)
 	{
 
 	}
-	
+
 
 
 	//unsigned char  * swapper_pg_dir=(unsigned char *)0x80b4c000;
