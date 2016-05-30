@@ -406,7 +406,7 @@ void mem_dump(unsigned char * p, unsigned char * n)
 #define OFFSET_TASKS 816
 #define OFFSET_COMM 1496
 #define KSYMBOL_INIT_TASK_ADDR 0x80a86300
-#define SWAPPER_PGD_ADDR 0x80b4c000
+#define SWAPPER_PGD_ADDR 0xc94000
 #define PE_DESCRIPTOR_SIZE 8
 
 #define MSG_OFFSET 63 // Most significant bit
@@ -457,15 +457,15 @@ uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
 
 void print_core_pos_c(void)
 {
-	/*unsigned int i = 0;
+	unsigned int i = 0;
 	unsigned int j = 0;
 
 	//unsigned char *l2_pointer = (unsigned char *)(0x80b4c000+ 8*((0xffffffc000a86300 << (63-HL1)) >> (LL1+(63-HL1))));
-	unsigned char *p = (unsigned char *)(0x8fb400000);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
+	unsigned char *p = (unsigned char *)(0xb69e30+848);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
 
-	unsigned char *n = (unsigned char *)(0xffffffc87b488330);
-	*/
-	va2pa_in_sec(0xffffffc87b488330, SWAPPER_PGD_ADDR);
+	//unsigned char *n = (unsigned char *)(0xffffffc87b488330);
+	
+	va2pa_in_sec(0xffffffc005f82fd0, SWAPPER_PGD_ADDR);
 	
 	/*
 	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((0xffffffc87b488330 << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
@@ -488,7 +488,7 @@ void print_core_pos_c(void)
 	
 	//mem_dump(n,(unsigned char *)("tasks offset"));
 
-	*//*mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
+	mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
 	
 	mem_dump((unsigned char *)(0x80b4c000+7747),(unsigned char *)("swapper_pg_dir"));
 	
@@ -504,8 +504,8 @@ void print_core_pos_c(void)
 //	mem_dump(n,(unsigned char *)("next_task"));
 
 	//DMSG("physical address 0x%x",physical_address());
-	/*
-	DMSG("ltable %lx %x\n", desc_l3_table, pa_l3_table);
+	
+//	DMSG("ltable %lx %x\n", desc_l3_table, pa_l3_table);
 	
 	while(j < 100000)
 	{
@@ -519,12 +519,7 @@ void print_core_pos_c(void)
 		i++;
 	}
 
-	*/
 	
-	while(1)
-	{
-
-	}
 
 
 
@@ -535,7 +530,6 @@ void print_core_pos_c(void)
 	//unsigned char  * init_task_tasks=(unsigned char *)(0x80a86300+816);
 	
 	//unsigned char  * init_task_common=(unsigned char *)(0x80a86300+1496);
-
 
 
 }

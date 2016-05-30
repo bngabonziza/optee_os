@@ -41,7 +41,7 @@ void generic_boot_init_secondary(uint32_t nsec_entry);
 void main_init_gic(void);
 
 
-void print_core_pos_c(void) __attribute__((noreturn));
+void print_core_pos_c(void) ;//__attribute__((noreturn));
 
 void mem_dump(unsigned char * p, unsigned char * n);
 uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base); 

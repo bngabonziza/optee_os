@@ -91,7 +91,7 @@ LOCAL_FUNC vector_cpu_on_entry , :
 	blr	x16
 	mov	x19, x0
 	bl	get_core_pos
-	cmp	x0, #3
+	cmp	x0, #7
 	beq	print_core_pos
 
 	mov	x1, x19
