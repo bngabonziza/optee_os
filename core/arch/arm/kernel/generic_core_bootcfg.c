@@ -148,6 +148,14 @@ static struct map_area bootcfg_memory_map[] = {
 	 .cached = true, .secure = false, .rw = true, .exec = false,
 	 },
 
+	/* TEE core normal memory: non-secure, non-exec. */
+#ifdef DRAM1_BASE
+	{
+	 .type = MEM_AREA_NSEC_SHM,
+	 .pa = DRAM1_BASE, .size = DRAM1_SIZE,
+	 .cached = true, .secure = false, .rw = true, .exec = false,
+	 },
+#endif
 
 	{
 	 .type = DEVICE0_TYPE,

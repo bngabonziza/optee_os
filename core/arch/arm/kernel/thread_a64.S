@@ -806,7 +806,7 @@ LOCAL_FUNC elx_fiq , :
 	mov	sp, x2
 	/* Switch back to SP_EL1 */
 	msr	spsel, #1
-
+ 
 	/* Update core local flags */
 	ldr	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
@@ -827,6 +827,7 @@ LOCAL_FUNC print_core_pos , :
 	smc	#0
 	b	.	SMC should not return */
 	b	print_core_pos_c
+	b	.
 END_FUNC print_core_pos
 
 

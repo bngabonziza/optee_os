@@ -361,20 +361,44 @@ static void init_secondary_helper(uint32_t nsec_entry)
 	DMSG("Secondary CPU Switching to normal world boot\n");
 }
 
-struct linux_list_head
+
+
+
+#define OFFSET_TASKS 848
+#define OFFSET_COMM 1456
+#define KSYMBOL_INIT_TASK_ADDR 0xb69e30
+#define SWAPPER_PGD_ADDR 0xc94000
+#define PE_DESCRIPTOR_SIZE 8
+
+#define MSG_OFFSET 63 // Most significant bit
+#define HL1 38 					   
+#define LL1 30 
+#define HL2 29 
+#define LL2 21 
+#define HL3 20 
+#define LL3 12
+#define LINUX_PAGE_SIZE_SHIFT 12
+#define TRANS_TB_BASE_ADDR_MSG_BIT 47 // D4.3 in ARM Manual
+#define L2_BLOCK_H 47
+#define L2_BLOCK_L 21
+
+
+struct list_head_sec
 {
-	struct linux_list_head *next, *prev;
+	struct list_head_sec *next, *prev;
 };
 
-/*
-struct linux_task_struct
+
+struct task_struct_sec
 {
 	unsigned char padding1[OFFSET_TASKS];
-	struct linux_list_head tasks;
+	struct list_head_sec tasks;
 	unsigned char padding2[OFFSET_COMM - OFFSET_TASKS - 16];
 	char comm[16];
+	
+	
 } __attribute__((__packed__));
-*/
+
 
 void mem_dump(unsigned char * p, unsigned char * n)
 {
@@ -403,23 +427,7 @@ void mem_dump(unsigned char * p, unsigned char * n)
 	//while(i++ < 10000)
 	//{}
 	
-#define OFFSET_TASKS 816
-#define OFFSET_COMM 1496
-#define KSYMBOL_INIT_TASK_ADDR 0x80a86300
-#define SWAPPER_PGD_ADDR 0xc94000
-#define PE_DESCRIPTOR_SIZE 8
 
-#define MSG_OFFSET 63 // Most significant bit
-#define HL1 38 					   
-#define LL1 30 
-#define HL2 29 
-#define LL2 21 
-#define HL3 20 
-#define LL3 12
-#define LINUX_PAGE_SIZE_SHIFT 12
-#define TRANS_TB_BASE_ADDR_MSG_BIT 47 // D4.3 in ARM Manual
-#define L2_BLOCK_H 47
-#define L2_BLOCK_L 21
 	
 uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
 {
@@ -437,7 +445,7 @@ uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
 	pe_descriptor_l2_table = *(uint64_t*)(pa_l2_table + PE_DESCRIPTOR_SIZE * index_l2_table);
 	
 	// when it is a block
-	ret = ((pe_descriptor_l2_table << (MSG_OFFSET - L2_BLOCK_H)) >> (MSG_OFFSET - L2_BLOCK_H + L2_BLOCK_L)) << L2_BLOCK_L;
+	ret = ((pe_descriptor_l2_table << (MSG_OFFSET - L2_BLOCK_H)) >> (MSG_OFFSET - L2_BLOCK_H + L2_BLOCK_L+1)) << (L2_BLOCK_L+1);
 	ret += ((va << (MSG_OFFSET - L2_BLOCK_L)) >> (MSG_OFFSET - L2_BLOCK_L));
 	
 	// for 4KB
@@ -455,39 +463,163 @@ uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
 	return ret;
 } 
 
+void proc_list(uint32_t init_task_tasks)
+{
+	uint32_t next_task=0, next_task_swapper;
+	uint64_t prev_task, pa_next_task;
+	
+	unsigned char *p;
+	
+	prev_task = init_task_tasks;
+	
+	
+	next_task_swapper = *(uint64_t*)prev_task;
+		
+	//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+	
+	pa_next_task = next_task_swapper;
+		
+	p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
+	
+	DMSG("process: %x %s \n", next_task_swapper,p);
+	
+	prev_task = pa_next_task;
+	
+	
+	while (next_task_swapper != next_task)
+	{
+		next_task = *(uint64_t*)prev_task;
+		
+		//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+		
+		pa_next_task = next_task;
+			
+		p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
+		
+		DMSG("process: %x %s \n", next_task,p);
+		
+		prev_task = pa_next_task;
+
+	}	
+	
+}
+
+
+
 void print_core_pos_c(void)
 {
-	unsigned int i = 0;
-	unsigned int j = 0;
+	
+	//unsigned int i = 0;
+	long long j = 0;
+	
+	uint32_t init_task_tasks;
+	uint32_t next_task=0, next_task_swapper;
+	uint64_t prev_task, pa_next_task;
+	
+	unsigned char *p;
 
+	char ch[] = "secure world";
+	
+	init_task_tasks = KSYMBOL_INIT_TASK_ADDR + OFFSET_TASKS;
+	
+	proc_list(init_task_tasks);
+	
+		
+	DMSG("the secure world string %s \n ",ch);
+	while(1)
+	{			
+	
+	
+		j=0;
+		while(j++ < 10000000000)
+		{
+			j=0;
+			while(j++ < 10000000000)
+			{}
+	DMSG("List of normal world process from %s \n ",ch);
+	
+			
+		}	
+		prev_task = init_task_tasks;
+		
+		next_task = init_task_tasks;
+		
+		next_task_swapper = *(uint64_t*)prev_task;
+			
+		//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+		
+		pa_next_task = next_task_swapper;
+			
+		p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
+		
+		DMSG("process: %x %s \n", next_task_swapper,p);
+		
+		prev_task = pa_next_task;
+		
+		
+		while (next_task_swapper != next_task)
+		{
+			next_task = *(uint64_t*)prev_task;
+			
+			//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+			
+			pa_next_task = next_task;
+				
+			p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
+			
+			DMSG("process: %x %s \n", next_task,p);
+			
+			prev_task = pa_next_task;
+
+		}
+			
+
+		
+	
+	}	
+		
+
+	/*
+	next_task = *(uint64_t*)prev_task;
+	
+	pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+
+	
+	p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
+
+	DMSG("process: %s\n", p);
+
+*/
 	//unsigned char *l2_pointer = (unsigned char *)(0x80b4c000+ 8*((0xffffffc000a86300 << (63-HL1)) >> (LL1+(63-HL1))));
-	unsigned char *p = (unsigned char *)(0xb69e30+848);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
-
+	//unsigned char *p = (unsigned char *)(0xb69e30+848);//+  8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
 	//unsigned char *n = (unsigned char *)(0xffffffc87b488330);
 	
-	va2pa_in_sec(0xffffffc005f82fd0, SWAPPER_PGD_ADDR);
+	//uint64_t pa_next_task =	*(uint64_t*)(va2pa_in_sec(0xffffffc005f82fd0, SWAPPER_PGD_ADDR));
 	
+	//unsigned char *p = (unsigned char *)(va2pa_in_sec(pa_next_task, SWAPPER_PGD_ADDR));
+
 	/*
+	
 	uint64_t pa_l2_table = (((*(uint64_t*)(0x80b4c000+ 8*((0xffffffc87b488330 << (63-HL1)) >> (LL1+(63-HL1)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
 	uint32_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
 	uint64_t desc_l3_table = *(uint64_t*)(pa_l2_table+ 8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3))));
 	
 	//uint32_t pa = (((*(uint64_t*)(pa_l3_table+ 8*((0xffffffc87b488330 << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
 
-	//sec_virt_to_phys((uint64_t) (0xffffffc87b488330));
+	//sec_virt_to_phys((uint64_t) (0xffffffc87b488330));*/
 
-	
+	//proc_list(init_task_tasks);
 	
 	
 	//unsigned char *l3_base = (unsigned char *)(0x0);
 
 
-	memcpy(&n, &pa_l3_table, 4);
+	//memcpy(&n, &pa_l3_table, 4);
 	
 	//unsigned char *l3_pointer = (unsigned char *)(+ 8*((0xffffffc000a86300 << (63-HL2)) >> (LL2+(63-HL2))));
 	
 	//mem_dump(n,(unsigned char *)("tasks offset"));
-
+/*
 	mem_dump((unsigned char *)(0x80a86300+904),(unsigned char *)("tasks offset"));
 	
 	mem_dump((unsigned char *)(0x80b4c000+7747),(unsigned char *)("swapper_pg_dir"));
@@ -506,7 +638,7 @@ void print_core_pos_c(void)
 	//DMSG("physical address 0x%x",physical_address());
 	
 //	DMSG("ltable %lx %x\n", desc_l3_table, pa_l3_table);
-	
+/*	
 	while(j < 100000)
 	{
 		j++;
@@ -519,7 +651,7 @@ void print_core_pos_c(void)
 		i++;
 	}
 
-	
+	*/
 
 
 
