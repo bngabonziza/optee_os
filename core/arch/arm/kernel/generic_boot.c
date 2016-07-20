@@ -379,9 +379,13 @@ static void init_secondary_helper(uint32_t nsec_entry)
 #define LL3 12
 #define LINUX_PAGE_SIZE_SHIFT 12
 #define TRANS_TB_BASE_ADDR_MSG_BIT 47 // D4.3 in ARM Manual
+
+#define L1_BLOCK_H 47
+#define L1_BLOCK_L 30
 #define L2_BLOCK_H 47
 #define L2_BLOCK_L 21
-
+#define L3_BLOCK_H 47
+#define L3_BLOCK_L 12
 
 struct list_head_sec
 {
@@ -435,53 +439,126 @@ uint64_t va2pa_in_sec(uint64_t va, uint64_t ll_base)
 	uint64_t index_l1_table, pe_descriptor_l1_table, pa_l2_table;
 	uint64_t index_l2_table, pe_descriptor_l2_table;
 	uint64_t ret;
-	//uint64_t index_l3_table, pe_descriptor_l3_table;
+	uint64_t index_l3_table, pe_descriptor_l3_table, pa_l3_table;
 	
 	index_l1_table = (va << (MSG_OFFSET - HL1)) >> (LL1 + (MSG_OFFSET - HL1));
 	pe_descriptor_l1_table = *(uint64_t*)(ll_base + PE_DESCRIPTOR_SIZE * index_l1_table);
-	pa_l2_table = ((pe_descriptor_l1_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+		
+	if(((pe_descriptor_l1_table << 62)>>62) == 1)
+	{
 
-	index_l2_table = (va << (MSG_OFFSET - HL2)) >> (LL2 + (MSG_OFFSET - HL2));
-	pe_descriptor_l2_table = *(uint64_t*)(pa_l2_table + PE_DESCRIPTOR_SIZE * index_l2_table);
-	
 	// when it is a block
-	ret = ((pe_descriptor_l2_table << (MSG_OFFSET - L2_BLOCK_H)) >> (MSG_OFFSET - L2_BLOCK_H + L2_BLOCK_L+1)) << (L2_BLOCK_L+1);
-	ret += ((va << (MSG_OFFSET - L2_BLOCK_L)) >> (MSG_OFFSET - L2_BLOCK_L));
+	ret = ((pe_descriptor_l1_table << (MSG_OFFSET - L1_BLOCK_H)) >> (MSG_OFFSET - L1_BLOCK_H + L1_BLOCK_L+1)) << (L1_BLOCK_L+1);
+	ret += ((va << (MSG_OFFSET - L1_BLOCK_L)) >> (MSG_OFFSET - L1_BLOCK_L));
 	
-	// for 4KB
-	//pa_l3_table = ((pe_descriptor_l2_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+	DMSG("pe_descriptor_l1_table :  %lx \n", pe_descriptor_l1_table);
 
-	//index_l3_table = (va << (MSG_OFFSET - HL3)) >> (LL3 + (MSG_OFFSET - HL3));
-	//pe_descriptor_l3_table = *(uint64_t*)(pa_l3_table + PE_DESCRIPTOR_SIZE * index_l3_table);
-
-//	uint64_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ PE_DESCRIPTOR_SIZE *((va << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+	DMSG("physical address pe_descriptor_l1_table:  %lx \n", ret);
 	
-	//uint64_t pa = *(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3))));//pa_l3_table;//+((va << (63-LL3+1)) >> (63-LL3+1));
-	//uint32_t py= (((*(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
-
-	DMSG("physical address:  %lx \n", ret);
 	return ret;
+	
+	}
+	
+	else if (((pe_descriptor_l1_table << 62)>>62) == 3)
+	{
+	
+		pa_l2_table = ((pe_descriptor_l1_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+
+		index_l2_table = (va << (MSG_OFFSET - HL2)) >> (LL2 + (MSG_OFFSET - HL2));
+		pe_descriptor_l2_table = *(uint64_t*)(pa_l2_table + PE_DESCRIPTOR_SIZE * index_l2_table);
+		
+				
+		if(((pe_descriptor_l2_table << 62)>>62) == 1)
+		{
+
+			// when it is a block
+			ret = ((pe_descriptor_l2_table << (MSG_OFFSET - L2_BLOCK_H)) >> (MSG_OFFSET - L2_BLOCK_H + L2_BLOCK_L+1)) << (L2_BLOCK_L+1);
+			ret += ((va << (MSG_OFFSET - L2_BLOCK_L)) >> (MSG_OFFSET - L2_BLOCK_L));
+			
+			DMSG("pe_descriptor_l2_table :  %lx \n", pe_descriptor_l2_table);
+			
+			DMSG("physical address pe_descriptor_l2_table:  %lx \n", ret);
+			return ret;
+			
+		}
+		
+		else if (((pe_descriptor_l2_table << 62)>>62) == 3)
+		{
+			// for 4KB
+			pa_l3_table = ((pe_descriptor_l2_table << (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT)) >> (MSG_OFFSET - TRANS_TB_BASE_ADDR_MSG_BIT + LINUX_PAGE_SIZE_SHIFT)) << LINUX_PAGE_SIZE_SHIFT;
+
+			index_l3_table = (va << (MSG_OFFSET - HL3)) >> (LL3 + (MSG_OFFSET - HL3));
+			pe_descriptor_l3_table = *(uint64_t*)(pa_l3_table + PE_DESCRIPTOR_SIZE * index_l3_table);
+			
+			
+			if(((pe_descriptor_l3_table << 62)>>62) == 3)
+			{
+				ret = ((pe_descriptor_l3_table << (MSG_OFFSET - L3_BLOCK_H)) >> (MSG_OFFSET - L3_BLOCK_H + L3_BLOCK_L+1)) << (L3_BLOCK_L+1);
+				ret += ((va << (MSG_OFFSET - L3_BLOCK_L)) >> (MSG_OFFSET - L3_BLOCK_L));
+
+				//uint64_t pa_l3_table = (((*(uint64_t*)(pa_l2_table+ PE_DESCRIPTOR_SIZE *((va << (63-HL2)) >> (LL2+(63-HL2)))))<< (63-47)) >> (12 + 63 - 47)) << 12;
+				
+				//uint64_t pa = *(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3))));//pa_l3_table;//+((va << (63-LL3+1)) >> (63-LL3+1));
+				//uint32_t py= (((*(uint64_t*)(pa_l3_table+ 8*((va << (63-HL3)) >> (LL3+(63-HL3)))))<< (63-47)) >> (12 + 63 - 47));
+
+				DMSG("pe_descriptor_l3_table :  %lx \n", pe_descriptor_l3_table);
+
+				DMSG("physical address pe_descriptor_l3_table:  %lx \n", ret);
+				return ret;
+			}
+			
+			else
+			{
+				
+				DMSG("pe_descriptor_l3_table :  %lx \n", pe_descriptor_l3_table);
+	
+				DMSG("invalid pe_descriptor_l3_table :  %lx \n", pe_descriptor_l3_table);
+
+				return 0;
+			}
+		}
+		
+		else
+		{
+			DMSG("pe_descriptor_l2_table :  %lx \n", pe_descriptor_l2_table);
+		
+			DMSG("invalid pe_descriptor_l2_table :  %lx \n", pe_descriptor_l2_table);
+
+			return 0;
+		}
+	
+	}
+	
+	else
+	{
+		DMSG("pe_descriptor_l1_table :  %lx \n", pe_descriptor_l1_table);
+		
+		DMSG("invalid pe_descriptor_l1_table :  %lx \n", pe_descriptor_l1_table);
+
+		return 0;
+	}
+	
 } 
 
 void proc_list(uint32_t init_task_tasks)
 {
-	uint32_t next_task=0, next_task_swapper;
+	uint64_t next_task, next_task_swapper;
 	uint64_t prev_task, pa_next_task;
 	
 	unsigned char *p;
 	
 	prev_task = init_task_tasks;
-	
+	next_task = prev_task;
 	
 	next_task_swapper = *(uint64_t*)prev_task;
 		
-	//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+	pa_next_task =	va2pa_in_sec(next_task_swapper, SWAPPER_PGD_ADDR);
 	
-	pa_next_task = next_task_swapper;
+	//pa_next_task = next_task_swapper;
 		
 	p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
 	
-	DMSG("process: %x %s \n", next_task_swapper,p);
+	DMSG("process: %lx %s \n", pa_next_task,p);
 	
 	prev_task = pa_next_task;
 	
@@ -490,13 +567,13 @@ void proc_list(uint32_t init_task_tasks)
 	{
 		next_task = *(uint64_t*)prev_task;
 		
-		//pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
+		pa_next_task =	va2pa_in_sec(next_task, SWAPPER_PGD_ADDR);
 		
-		pa_next_task = next_task;
+		//pa_next_task = next_task;
 			
 		p = (unsigned char * )(pa_next_task + OFFSET_COMM - OFFSET_TASKS);
 		
-		DMSG("process: %x %s \n", next_task,p);
+		DMSG("process: %lx %s \n", next_task,p);
 		
 		prev_task = pa_next_task;
 
@@ -513,7 +590,7 @@ void print_core_pos_c(void)
 	long long j = 0;
 	
 	uint32_t init_task_tasks;
-	uint32_t next_task=0, next_task_swapper;
+	uint32_t next_task, next_task_swapper;
 	uint64_t prev_task, pa_next_task;
 	
 	unsigned char *p;
@@ -521,10 +598,29 @@ void print_core_pos_c(void)
 	char ch[] = "secure world";
 	
 	init_task_tasks = KSYMBOL_INIT_TASK_ADDR + OFFSET_TASKS;
-	
-	proc_list(init_task_tasks);
-	
+	while (1)
+	{
 		
+		
+		va2pa_in_sec(0xffffffc035113050, SWAPPER_PGD_ADDR);	
+		
+		proc_list(init_task_tasks);
+
+
+		j=0;
+		while(j++ < 1000000000)
+		{
+			j=0;
+			while(j++ < 100000000)
+			{}	
+			
+		}
+			
+	
+	}	
+	
+	
+	
 	DMSG("the secure world string %s \n ",ch);
 	while(1)
 	{			
@@ -535,11 +631,12 @@ void print_core_pos_c(void)
 		{
 			j=0;
 			while(j++ < 10000000000)
-			{}
-	DMSG("List of normal world process from %s \n ",ch);
-	
+			{}	
 			
 		}	
+		
+		DMSG("List of normal world process from %s \n ",ch);
+
 		prev_task = init_task_tasks;
 		
 		next_task = init_task_tasks;
@@ -572,9 +669,7 @@ void print_core_pos_c(void)
 			prev_task = pa_next_task;
 
 		}
-			
-
-		
+				
 	
 	}	
 		
